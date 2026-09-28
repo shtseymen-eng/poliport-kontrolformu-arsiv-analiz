@@ -33,3 +33,24 @@ Windows bilgisayarda `EXE_OLUSTUR.bat` dosyasına çift tıklayın. Oluşan prog
 
 GitHub'a proje yüklendikten sonra **Actions → Windows EXE Build → Run workflow**
 ile de Windows EXE paketi üretilebilir.
+
+## macOS uygulaması oluşturma
+
+Mac'te Terminal'i proje klasöründe açıp aşağıdaki komutları bir kez çalıştırın:
+
+```bash
+chmod +x MAC_APP_OLUSTUR.command
+./MAC_APP_OLUSTUR.command
+```
+
+İşlem tamamlandığında macOS uygulaması şu konumda oluşur:
+
+```text
+dist/SEYMEN_Kontrol_Formu_Arsiv_Analizi.app
+```
+
+İmzalanmamış ilk yerel çalıştırmada macOS güvenlik uyarısı gösterebilir. Finder'da
+uygulamaya sağ tıklayıp **Aç** seçeneğini kullanın.
+
+GitHub'da **Actions → macOS App Build → Run workflow** çalıştırıldığında `.app`
+paketi, ilgili çalışmanın **Artifacts** bölümünden indirilebilir.
