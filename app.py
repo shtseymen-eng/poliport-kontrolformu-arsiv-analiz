@@ -14,6 +14,12 @@ from src.form_reader import read_form
 from src.models import AssetType, UnreadableFile, ValidityRecord
 from src.question_catalog import default_catalog
 
+ARCHIVE_HELP = (
+    "1. Arşiv klasörünü seçin veya örnek yapıyı oluşturun.  "
+    "2. Excel kontrol formlarını Nakliyeci/Kontrol Formları içine koyun.  "
+    "3. Yıl, ay, gün ve nakliyeci filtresini seçip Analizi Listele'ye basın."
+)
+
 
 @dataclass(frozen=True)
 class Selection:
@@ -34,6 +40,10 @@ def choose_carrier(values: set[str]) -> str:
     if len(values) != 1:
         raise ValueError("Tek seferde yalnız bir nakliyeci seçilebilir.")
     return next(iter(values))
+
+
+def expected_archive_path(root: Path, year: int, month: str, day: int, carrier: str) -> Path:
+    return root / str(year) / month.upper() / str(day) / carrier / "Kontrol Formları"
 
 
 def analyze_archive(root: Path, selection: Selection) -> tuple[list[ValidityRecord], list[UnreadableFile], list]:
@@ -65,14 +75,22 @@ class ArchiveAnalysisApp(tk.Tk):
         header.pack(fill="x")
         tk.Label(header, text="SEYMEN", bg="#ffcc18", fg="#12395e", font=("Arial", 22, "bold"), padx=20, pady=9).pack(side="left", padx=24)
         tk.Label(header, text="KONTROL FORMU ARŞİV ANALİZİ", bg="#153f69", fg="white", font=("Arial", 20, "bold")).pack(side="left")
-        controls = ttk.Frame(self, padding=12)
+        controls = ttk.Frame(self, padding=(12, 12, 12, 6))
         controls.pack(fill="x")
         ttk.Button(controls, text="Arşiv Klasörünü Seç", command=self.select_root).pack(side="left", padx=(0, 8))
+        ttk.Button(controls, text="Örnek Arşiv Yapısı Oluştur", command=self.create_archive_template).pack(side="left", padx=8)
+        self.open_root_button = ttk.Button(controls, text="Seçilen Klasörü Aç", command=self.open_root, state="disabled")
+        self.open_root_button.pack(side="left", padx=8)
         self.analyze_button = ttk.Button(controls, text="Analizi Listele", command=self.start_analysis, state="disabled")
         self.analyze_button.pack(side="left", padx=8)
         self.export_button = ttk.Button(controls, text="Excel'e Aktar", command=self.export_report, state="disabled")
         self.export_button.pack(side="left", padx=8)
-        self.status = tk.StringVar(value="Arşiv klasörü seçin.")
+        self.status = tk.StringVar(value="Başlamak için arşiv klasörünü seçin.")
+        info = ttk.LabelFrame(self, text="Kullanım", padding=(12, 7))
+        info.pack(fill="x", padx=12, pady=(0, 8))
+        ttk.Label(info, text=ARCHIVE_HELP, wraplength=1200, justify="left").pack(anchor="w")
+        self.root_display = tk.StringVar(value="Seçilen arşiv klasörü: —")
+        ttk.Label(info, textvariable=self.root_display, foreground="#153f69").pack(anchor="w", pady=(5, 0))
         ttk.Label(controls, textvariable=self.status).pack(side="left", padx=16)
         filters = ttk.Frame(self, padding=(12, 0, 12, 8))
         filters.pack(fill="x")
@@ -113,6 +131,8 @@ class ArchiveAnalysisApp(tk.Tk):
             return
         self.root_path = Path(chosen)
         self.catalog = discover_archive(self.root_path)
+        self.root_display.set(f"Seçilen arşiv klasörü: {self.root_path}")
+        self.open_root_button.configure(state="normal")
         for box in (self.years, self.months, self.days, self.carriers):
             box.delete(0, "end")
         for value in self.catalog.years:
@@ -125,8 +145,47 @@ class ArchiveAnalysisApp(tk.Tk):
         self.carriers.insert("end", "Tümü")
         for carrier, count in counts.items():
             self.carriers.insert("end", f"{carrier} ({count} form)")
-        self.status.set(f"{len(self.catalog.files)} kontrol formu bulundu. Yıl, ay ve nakliyeci seçin.")
+        if not self.catalog.files:
+            self.status.set(
+                "Kontrol formu bulunamadı. Excel dosyalarını Yıl/Ay/Gün/Nakliyeci/Kontrol Formları klasörüne koyun."
+            )
+            self.analyze_button.configure(state="disabled")
+            return
+        for box in (self.years, self.months, self.days):
+            box.selection_set(0, "end")
+        self.carriers.selection_set(0)
+        self.status.set(f"{len(self.catalog.files)} kontrol formu bulundu. Tüm filtreler seçildi; isterseniz daraltın.")
         self.analyze_button.configure(state="normal")
+
+    def create_archive_template(self):
+        chosen = filedialog.askdirectory(title="Arşiv ana klasörünün oluşturulacağı yeri seçin")
+        if not chosen:
+            return
+        root = Path(chosen) / "SEYMEN_Kontrol_Formu_Arsivi"
+        target = expected_archive_path(root, date.today().year, "EYLÜL", date.today().day, "NAKLIYECI_ADI")
+        target.mkdir(parents=True, exist_ok=True)
+        messagebox.showinfo(
+            "SEYMEN",
+            "Örnek arşiv yapısı oluşturuldu. Excel kontrol formlarını aşağıdaki klasöre koyun:\n\n"
+            f"{target}\n\nSonra 'Arşiv Klasörünü Seç' ile SEYMEN_Kontrol_Formu_Arsivi klasörünü seçin.",
+        )
+
+    def open_root(self):
+        if not self.root_path:
+            return
+        try:
+            import os
+            import subprocess
+            import sys
+
+            if sys.platform == "darwin":
+                subprocess.run(["open", str(self.root_path)], check=False)
+            elif os.name == "nt":
+                os.startfile(self.root_path)  # type: ignore[attr-defined]
+            else:
+                subprocess.run(["xdg-open", str(self.root_path)], check=False)
+        except OSError:
+            messagebox.showwarning("SEYMEN", f"Klasör açılamadı:\n{self.root_path}")
 
     def _selection(self) -> Selection:
         return build_selection(self._selected(self.years), self._selected(self.months), self._selected(self.days), choose_carrier(self._selected(self.carriers)))

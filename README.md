@@ -3,7 +3,10 @@
 Bu uygulama, daha önce indirilen kontrol formu Excel dosyalarını analiz eder.
 Mevcut indirme uygulamasına, ReportServer'a veya Chrome'a bağlanmaz.
 
-## Beklenen klasör düzeni
+## Kontrol formunu nereye koyacağım?
+
+Uygulama açıldığında önce **Örnek Arşiv Yapısı Oluştur** düğmesine basın ve
+arşivin tutulacağı yeri seçin. Uygulama şu klasör düzenini hazırlar:
 
 ```text
 Ana Klasör
@@ -15,13 +18,17 @@ Ana Klasör
                     └── 34ABC123_....xlsx
 ```
 
+Her indirilen kontrol formu Excel'ini, ait olduğu gün ve nakliyecinin
+`Kontrol Formları` klasörüne kopyalayın. Ardından uygulamada **Arşiv
+Klasörünü Seç** ile en üstteki `SEYMEN_Kontrol_Formu_Arsivi` klasörünü seçin.
+Yıl, ay, gün ve nakliyeci listeleri otomatik dolar; ilk açılışta tümü seçilidir.
+
 ## Çalıştırma
 
 Windows'ta `KUR_VE_CALISTIR.bat` dosyasına çift tıklayın.
 
-Uygulamada ana arşiv klasörünü seçin; yıl, ay, gün ve nakliyeci filtrelerini
-belirleyin. `Analizi Listele` çekicileri tek satır mantığıyla tarar. Her tarihli
-evrak ekranda görünür; geçmiş tarihler kırmızı, 20 gün ve altı turuncudur.
+`Analizi Listele` çekicileri tek satır mantığıyla tarar. Her tarihli evrak
+ekranda görünür; geçmiş tarihler kırmızı, 20 gün ve altı turuncudur.
 
 `Excel'e Aktar` aşağıdaki sayfaları oluşturur: Özet, Çekiciler, Dorseler,
 ISO Tanklar, Sürücüler, Kritik Evraklar ve Okunamayan Dosyalar.

@@ -1,6 +1,7 @@
 import unittest
+from pathlib import Path
 
-from app import build_selection, choose_carrier
+from app import build_selection, choose_carrier, expected_archive_path
 
 
 class AppTests(unittest.TestCase):
@@ -14,3 +15,10 @@ class AppTests(unittest.TestCase):
     def test_choose_carrier_rejects_multiple_carriers(self):
         with self.assertRaises(ValueError):
             choose_carrier({"AGENA LOJ. (5 araç)", "ALIŞAN LOJ. (3 araç)"})
+
+    def test_expected_archive_path_places_forms_under_carrier_and_day(self):
+        root = Path("/tmp/arsiv")
+        self.assertEqual(
+            expected_archive_path(root, 2026, "EYLÜL", 28, "AGENA LOJ."),
+            root / "2026" / "EYLÜL" / "28" / "AGENA LOJ." / "Kontrol Formları",
+        )
