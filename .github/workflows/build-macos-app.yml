@@ -7,12 +7,13 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Intel macOS 13 runner creates a bundle compatible with macOS Catalina.
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.11'
       - name: Install dependencies
         run: python3 -m pip install -r requirements.txt
       - name: Build macOS app
