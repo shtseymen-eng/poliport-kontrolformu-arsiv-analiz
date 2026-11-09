@@ -226,5 +226,26 @@ class ArchiveAnalysisApp(tk.Tk):
         messagebox.showinfo("SEYMEN", "Excel raporu oluşturuldu.")
 
 
+def packaged_self_test():
+    """Offline check: create a hidden UI and a synthetic Excel report in a temporary folder."""
+    from tempfile import TemporaryDirectory
+    from openpyxl import load_workbook
+    window = ArchiveAnalysisApp()
+    window.withdraw()
+    window.update_idletasks()
+    window.destroy()
+    with TemporaryDirectory(prefix="seymen-archive-test-") as temp:
+        output = Path(temp) / "test.xlsx"
+        write_report(summarize([], date.today()), [], output, date.today())
+        book = load_workbook(output)
+        assert {"Özet", "Çekiciler", "Dorseler", "ISO Tanklar", "Sürücüler"} <= set(book.sheetnames)
+        book.close()
+    print("Packaged archive self-test passed (offline).")
+
+
 if __name__ == "__main__":
-    ArchiveAnalysisApp().mainloop()
+    import sys
+    if "--self-test" in sys.argv:
+        packaged_self_test()
+    else:
+        ArchiveAnalysisApp().mainloop()

@@ -1,25 +1,65 @@
-name: macOS App Build
-
+name: Desktop packages and release
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-
+    tags: ['v*']
+permissions:
+  contents: write
 jobs:
-  build:
-    # Intel macOS 13 runner creates a bundle compatible with macOS Catalina.
-    runs-on: macos-13
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            platform: Windows
+          - runner: macos-15
+            platform: macOS
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Install dependencies
-        run: python3 -m pip install -r requirements.txt
-      - name: Build macOS app
-        run: python3 -m PyInstaller --noconfirm --clean --windowed --name SEYMEN_Kontrol_Formu_Arsiv_Analizi app.py
-      - name: Upload macOS app
-        uses: actions/upload-artifact@v4
+        run: python -m pip install -r requirements.txt
+      - name: Regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Build desktop application
+        run: python -m PyInstaller --noconfirm --clean --windowed --name SEYMEN_Kontrol_Formu_Arsiv_Analizi app.py
+      - name: Packaged offline check (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist/SEYMEN_Kontrol_Formu_Arsiv_Analizi/SEYMEN_Kontrol_Formu_Arsiv_Analizi.exe -ArgumentList '--self-test' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw 'Packaged self-test failed' }
+          Compress-Archive -Path dist/SEYMEN_Kontrol_Formu_Arsiv_Analizi -DestinationPath Arsiv-Analizi-Windows.zip
+          (Get-FileHash Arsiv-Analizi-Windows.zip -Algorithm SHA256).Hash.ToLower() + '  Arsiv-Analizi-Windows.zip' | Set-Content Arsiv-Analizi-Windows.zip.sha256 -Encoding ASCII
+      - name: Packaged offline check and native ZIP (Mac)
+        if: runner.os == 'macOS'
+        run: |
+          dist/SEYMEN_Kontrol_Formu_Arsiv_Analizi.app/Contents/MacOS/SEYMEN_Kontrol_Formu_Arsiv_Analizi --self-test
+          codesign --verify --deep --strict dist/SEYMEN_Kontrol_Formu_Arsiv_Analizi.app
+          ditto -c -k --norsrc --noextattr --keepParent dist/SEYMEN_Kontrol_Formu_Arsiv_Analizi.app Arsiv-Analizi-macOS.zip
+          shasum -a 256 Arsiv-Analizi-macOS.zip > Arsiv-Analizi-macOS.zip.sha256
+          python -c 'import platform; print("Package architecture:", platform.machine())'
+      - uses: actions/upload-artifact@v4
         with:
-          name: SEYMEN_Kontrol_Formu_Arsiv_Analizi_macOS
-          path: dist/SEYMEN_Kontrol_Formu_Arsiv_Analizi.app
+          name: archive-${{ matrix.platform }}
+          path: Arsiv-Analizi-${{ matrix.platform }}.zip*
+          if-no-files-found: error
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: packages
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Arşiv Analizi — Windows ve Mac
+          body: Windows taşınabilir uygulaması ve gerçek macOS uygulama paketi. Her iki paket de sentetik Excel ve çevrimdışı pencere açılış testinden geçirilmiştir. Mac sürümü Apple noter onaylı değildir.
+          files: packages/*
+          fail_on_unmatched_files: true

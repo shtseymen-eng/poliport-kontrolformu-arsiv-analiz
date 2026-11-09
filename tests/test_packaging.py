@@ -18,6 +18,6 @@ class PackagingTests(unittest.TestCase):
         workflow = ROOT / ".github" / "workflows" / "build-macos-app.yml"
         self.assertTrue(workflow.exists())
         content = workflow.read_text(encoding="utf-8")
-        self.assertIn("macos-latest", content)
+        self.assertIn("macos-15", content)
         self.assertIn("PyInstaller", content)
         self.assertIn("upload-artifact", content)
