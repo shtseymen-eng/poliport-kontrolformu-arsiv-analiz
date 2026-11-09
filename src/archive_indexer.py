@@ -45,7 +45,7 @@ def select_forms(catalog: ArchiveCatalog, years: set[int], months: set[str], day
             continue
         if days and item.day not in days:
             continue
-        if carrier and carrier != "Tümü" and item.carrier != carrier:
+        if carrier and carrier != "Tümü" and item.carrier.rstrip(" .").casefold() != carrier.rstrip(" .").casefold():
             continue
         selected.append(item)
     return sorted(selected, key=lambda item: (item.year, MONTHS[item.month], item.day, item.carrier.lower(), item.path.name.lower()))

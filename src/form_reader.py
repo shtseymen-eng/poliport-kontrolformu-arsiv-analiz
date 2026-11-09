@@ -60,24 +60,29 @@ def _columns(sheet) -> tuple[int, dict[str, int]] | None:
 
 def read_form(file: ArchiveFile, catalog: QuestionCatalog) -> tuple[list[ValidityRecord], list[UnreadableFile]]:
     try:
-        sheet = load_workbook(file.path, data_only=True, read_only=True).active
-        found = _columns(sheet)
-        if not found:
-            return [], [UnreadableFile(str(file.path), "Sorumlu/Soru/Geçerlilik Tarihi/Tarih başlıkları bulunamadı")]
-        header_row, columns = found
-        records: list[ValidityRecord] = []
-        for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
-            question = str(row[columns["soru"]] or "").strip()
-            identifier = str(row[columns["sorumlu"]] or "").strip()
-            validity = _date(row[columns["geçerlilik tarihi"]])
-            if not question or not identifier or validity is None:
-                continue
-            control_at = _datetime(row[columns["tarih"]]) or datetime.combine(file.archive_date, datetime.min.time())
-            records.append(ValidityRecord(
-                carrier=file.carrier, asset_type=_asset_type(identifier, question), asset_id=identifier,
-                question=question, short_name=catalog.short_name(question), validity_date=validity,
-                control_date=control_at.date(), control_at=control_at, source_path=str(file.path),
-            ))
-        return records, []
+        with file.path.open("rb") as source:
+            workbook = load_workbook(source, data_only=True, read_only=True)
+            try:
+                sheet = workbook.active
+                found = _columns(sheet)
+                if not found:
+                    return [], [UnreadableFile(str(file.path), "Sorumlu/Soru/Geçerlilik Tarihi/Tarih başlıkları bulunamadı")]
+                header_row, columns = found
+                records: list[ValidityRecord] = []
+                for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
+                    question = str(row[columns["soru"]] or "").strip()
+                    identifier = str(row[columns["sorumlu"]] or "").strip()
+                    validity = _date(row[columns["geçerlilik tarihi"]])
+                    if not question or not identifier or validity is None:
+                        continue
+                    control_at = _datetime(row[columns["tarih"]]) or datetime.combine(file.archive_date, datetime.min.time())
+                    records.append(ValidityRecord(
+                        carrier=file.carrier, asset_type=_asset_type(identifier, question), asset_id=identifier,
+                        question=question, short_name=catalog.short_name(question), validity_date=validity,
+                        control_date=control_at.date(), control_at=control_at, source_path=str(file.path),
+                    ))
+                return records, []
+            finally:
+                workbook.close()
     except Exception as error:
         return [], [UnreadableFile(str(file.path), str(error))]
